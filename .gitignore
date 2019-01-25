@@ -1,3 +1,8 @@
+.idea/
+.vscode/
+.history/
+debug
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
