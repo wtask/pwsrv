@@ -1,0 +1,14 @@
+{
+	"server": {
+		"address": "",
+		"port": 8000
+	},
+	"storage": "mysql",
+	"mysql": {
+		"dsn": "mysql://pwsrv:pwsrv@tcp(127.0.0.1:3306)/pwsrv?parseTime=true"
+	},
+	"secret" :{
+		"user_password": "user_passwrod_secret",
+		"auth_bearer": "auth_bearer_secret"
+	}
+}
