@@ -8,26 +8,17 @@ Go 1.11 (amd64), MySQL 5.7 (64-bit) or MariaDB (equivalent version, 64-bit).
 
 ## Dependencies
 
-All used packages are managed by `dep` and included in this repository:
-
-```
-PROJECT                         CONSTRAINT     VERSION        REVISION  LATEST   PKGS USED
-github.com/go-sql-driver/mysql  v1.4.1         v1.4.1         72cd26f   v1.4.1   1
-github.com/gorilla/mux          v1.7           v1.7           a796238   v1.7.0   1
-github.com/jinzhu/gorm          ^1.9.2         v1.9.2         472c70c   v1.9.2   2
-github.com/jinzhu/inflection    branch master  branch master  0414036   0414036  1
-golang.org/x/net                branch master  branch master  65e2d4e   65e2d4e  1
-golang.org/x/text               v0.3.0         v0.3.0         f21a4df   v0.3.0   14
-google.golang.org/appengine     v1.4.0         v1.4.0         e9657d8   v1.4.0   1
-```
+All used packages are managed by `go mod` (and also redundantly by `dep`) and included in this repository. It should not require to use `go get` for building, installing or running server. Using of `dep` is likely to be discontinued in the future, but this is not certain.
 
 ## Installing
 
 Project IS NOT dockerized. Only manual installation is possible:
 
-* Install Go and set up standard golang environment (under {GOPATH})
+* Install Go 1.11 or above and set up standard golang environment.
 * Install and run DB server, create database and user to use with app
-* Clone or download this repository into local folder under `{GOPATH}/src/...` (project root): `{GOPATH}/src/github.com/wtask/pwsrv`
+* Clone or download this repository:
+	- into local folder __under__ `{GOPATH}`: `{GOPATH}/src/github.com/wtask/pwsrv`. In this case you will most likely have to setup `GO111MODULE` environment variable with value `on`
+	- __or__ into any local folder __outside__ `{GOPATH}`
 * Copy example config `pwsrv.config.dist.json` from project root into any dir, for example `{GOPATH}\etc\pwsrv\`. If you have a plan to support several environments, make copy of config per-environment: `pwsrv.config.dev.json`.
 * Modify the configuration file according with the your local settings.
 
