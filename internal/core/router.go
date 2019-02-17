@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -12,10 +13,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Router - initializes router and returns http.Handler interface based on it.
-func Router(service api.HTTPService) http.Handler {
+// NewRouter - initializes router and returns http.Handler interface based on it.
+func NewRouter(service api.HTTPService, d middleware.TokenDiscoverer) http.Handler {
+	if service == nil {
+		panic(errors.New("core.NewRouter: api.HTTPService is nil"))
+	}
+	if d == nil {
+		panic(errors.New("core.NewRouter: middleware.TokenDiscoverer is nil"))
+	}
+
 	r := mux.NewRouter()
-	r.Use(middleware.AuthorizationTryout(service.GetAuthBearer()))
+	r.Use(middleware.AuthorizationTryout(d))
 
 	r.NewRoute().
 		Path("/").

@@ -28,19 +28,19 @@ var (
 	AppConfigPathname = ""
 )
 
-// start - launches given server to listen and serve in background;
+// startServer - launches given server to listen and serve in background;
 // writes into fail channel an error (or nil) as reason of startup fall
 // or termination.
-func start(s *http.Server, fail chan<- error) {
+func startServer(s *http.Server, fail chan<- error) {
 	fmt.Printf("Starting server (%s) ...\n", s.Addr)
 	go func() {
 		fail <- s.ListenAndServe()
 	}()
 }
 
-// waitStop - waiting for a value in the channel and stopping the server;
+// waitServerStop - waiting for a value in the channel and stopping the server;
 // writes shutdown error or nil into the fail channel.
-func waitStop(s *http.Server, stop <-chan bool, fail chan<- error) {
+func waitServerStop(s *http.Server, stop <-chan bool, fail chan<- error) {
 	go func() {
 		<-stop
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -50,7 +50,8 @@ func waitStop(s *http.Server, stop <-chan bool, fail chan<- error) {
 	}()
 }
 
-func storageFactory(cfg *Configuration) (storage.Interface, error) {
+// newStorage - storage factory
+func newStorage(cfg *Configuration) (storage.Interface, error) {
 	var (
 		storage storage.Interface
 		err     error
@@ -58,7 +59,7 @@ func storageFactory(cfg *Configuration) (storage.Interface, error) {
 	switch cfg.Storage {
 	case "mysql":
 		storage, err = mysql.NewStorage(
-			cfg.MySQL.DSN,
+			mysql.WithDSN(cfg.MySQL.DSN),
 			mysql.WithTablePrefix("pwsrv_"),
 			mysql.WithPasswordHasher(
 				hasher.NewMD5DigestHasher(cfg.Secret.UserPassword),
@@ -96,7 +97,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	storage, err := storageFactory(cfg)
+	storage, err := newStorage(cfg)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -107,17 +108,19 @@ func main() {
 	}
 	defer storage.Close()
 
-	service, err := core.NewHTTPService(
-		storage.CoreRepository(),
-		token.NewMD5DigestBearer(cfg.Secret.AuthBearer, 1*time.Hour),
+	authBearer := token.NewMD5DigestBearer(
+		token.WithTTL(1*time.Hour),
+		token.WithSignatureSecret(cfg.Secret.AuthBearer),
+		token.WithIssuer("PW demo API server"),
 	)
+	service, err := core.NewHTTPService(storage.CoreRepository(), authBearer)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 	server := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", cfg.Server.Address, cfg.Server.Port),
-		Handler: core.Router(service),
+		Handler: core.NewRouter(service, authBearer),
 	}
 
 	once := sync.Once{}
@@ -127,8 +130,8 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 
-	start(server, startFail)
-	waitStop(server, stop, stopFail)
+	startServer(server, startFail)
+	waitServerStop(server, stop, stopFail)
 
 	for {
 		select {

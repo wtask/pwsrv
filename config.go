@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"strings"
 )
 
 type Configuration struct {
@@ -44,6 +45,8 @@ func verifyConfig(cfg *Configuration) error {
 	if cfg.Server.Port < 0 {
 		return errors.New("config: server.Port value must be greater than or equal to zero")
 	}
+
+	cfg.Storage = strings.ToLower(cfg.Storage)
 	if cfg.Storage != "mysql" {
 		return errors.New("config: storage type supports only mysql")
 	}
@@ -52,6 +55,7 @@ func verifyConfig(cfg *Configuration) error {
 			return errors.New("config: mysql.dsn must not be empty")
 		}
 	}
+
 	if cfg.Secret.UserPassword == "" {
 		return errors.New("config: secret.user_password must not be empty")
 	}

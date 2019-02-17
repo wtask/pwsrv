@@ -24,6 +24,15 @@ type mysqlstorage struct {
 
 type storageOption func(*mysqlstorage)
 
+func WithDSN(dsn string) storageOption {
+	if dsn == "" {
+		panic(errors.New("mysql.WithDSN: DSN is empty"))
+	}
+	return func(s *mysqlstorage) {
+		s.dsn = strings.TrimPrefix(dsn, `mysql://`)
+	}
+}
+
 func WithTablePrefix(prefix string) storageOption {
 	return func(s *mysqlstorage) {
 		s.tablePrefix = prefix
@@ -31,22 +40,33 @@ func WithTablePrefix(prefix string) storageOption {
 }
 
 func WithPasswordHasher(h hasher.StringHasher) storageOption {
+	if h == nil {
+		panic(errors.New("mysql.WithPasswordHasher: string hasher is nil"))
+	}
 	return func(s *mysqlstorage) {
 		s.passwordHasher = h
 	}
 }
 
-func NewStorage(dsn string, options ...storageOption) (storage.Interface, error) {
-	s := mysqlstorage{
-		dsn: strings.TrimPrefix(dsn, `mysql://`),
-		// insecure hasher without secret
-		passwordHasher: hasher.NewMD5DigestHasher(""),
-	}
-	if s.dsn == "" {
-		return nil, errors.New("mysql.NewStorage(): DSN required")
+func (s *mysqlstorage) alter(options ...storageOption) *mysqlstorage {
+	if s == nil {
+		return nil
 	}
 	for _, o := range options {
-		o(&s)
+		if o != nil {
+			o(s)
+		}
+	}
+	return s
+}
+
+func NewStorage(options ...storageOption) (storage.Interface, error) {
+	s := (&mysqlstorage{}).alter(options...)
+	if s.dsn == "" {
+		return nil, errors.New("mysql.NewStorage: DSN is empty")
+	}
+	if s.passwordHasher == nil {
+		return nil, errors.New("mysql.NewStorage: password hasher is nil")
 	}
 	if s.tablePrefix != "" {
 		gorm.DefaultTableNameHandler = func(db *gorm.DB, defaultTableName string) string {
@@ -69,7 +89,7 @@ func NewStorage(dsn string, options ...storageOption) (storage.Interface, error)
 		return nil, err
 	}
 
-	return &s, nil
+	return s, nil
 }
 
 func (s *mysqlstorage) CoreRepository() core.Repository {

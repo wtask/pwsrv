@@ -2,10 +2,9 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
-
-	"github.com/wtask/pwsrv/internal/encryption/token"
 
 	"github.com/wtask/pwsrv/internal/core/reply"
 )
@@ -14,19 +13,28 @@ type contextKey int
 
 const (
 	_ contextKey = iota
-	authPayload
+	userIDKey
+)
+
+type (
+	TokenDiscoverer interface {
+		DiscoverUserID(token string) (uint64, bool)
+	}
 )
 
 // TODO Add SupplyRecovery middleware to handle panics inside end-points.
 
 // AuthorizationTryout - generates middleware which attempts to supply user from Authorization header.
-func AuthorizationTryout(b token.AuthBearer) func(http.Handler) http.Handler {
+func AuthorizationTryout(b TokenDiscoverer) func(http.Handler) http.Handler {
+	if b == nil {
+		panic(errors.New("middleware.AuthorizationTryout: TokenDiscoverer is nil"))
+	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if b != nil {
 				token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-				if p, ok := b.GetPayload(token); ok {
-					ctx := context.WithValue(r.Context(), authPayload, p)
+				if userID, ok := b.DiscoverUserID(token); ok && userID > 0 {
+					ctx := context.WithValue(r.Context(), userIDKey, userID)
 					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
@@ -41,7 +49,7 @@ func AuthorizationTryout(b token.AuthBearer) func(http.Handler) http.Handler {
 func AuthorizationRequired() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if p := GetAuthPayload(r); p == nil || p.UserID == 0 {
+			if userID, ok := DiscoverUserID(r); !ok || userID == 0 {
 				reply.Unauthorized()(w, r)
 				return
 			}
@@ -50,11 +58,8 @@ func AuthorizationRequired() func(http.Handler) http.Handler {
 	}
 }
 
-// GetAuthPayload - get authorization payload data from request context.
-func GetAuthPayload(r *http.Request) *token.Payload {
-	p, ok := r.Context().Value(authPayload).(*token.Payload)
-	if !ok || p == nil {
-		return nil
-	}
-	return p
+// DiscoverUserID - return user ID from request and existence flag.
+func DiscoverUserID(r *http.Request) (uint64, bool) {
+	v, ok := r.Context().Value(userIDKey).(uint64)
+	return v, ok
 }

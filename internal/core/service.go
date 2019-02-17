@@ -8,8 +8,6 @@ import (
 
 	"github.com/wtask/pwsrv/internal/core/middleware"
 
-	"github.com/wtask/pwsrv/internal/encryption/token"
-
 	"github.com/wtask/pwsrv/internal/core/reply"
 
 	"github.com/wtask/pwsrv/pkg/email"
@@ -19,44 +17,41 @@ import (
 	"github.com/wtask/pwsrv/internal/api"
 )
 
-type Repository interface {
-	GetUserByID(userID uint64) (*model.User, error)
-	GetUserByEmailAndPassword(address, password string) (*model.User, error)
-	CreateUser(user model.User, password string) (*model.User, error)
-	FindUsersHavePrefix(prefix string, limit int) ([]model.User, error)
-	CreateInternalTransfer(userID, recipientID uint64, sum float64) (*model.InternalTransfer, error)
-	RepeatInternalTransfer(transferID uint64) (*model.InternalTransfer, error)
-	GetInternalTransferByID(transferID uint64) (*model.InternalTransfer, error)
-	FindLastInternalTransfers(userID uint64, limit int) ([]model.InternalTransfer, error)
-}
+type (
+	Repository interface {
+		GetUserByID(userID uint64) (*model.User, error)
+		GetUserByEmailAndPassword(address, password string) (*model.User, error)
+		CreateUser(user model.User, password string) (*model.User, error)
+		FindUsersHavePrefix(prefix string, limit int) ([]model.User, error)
+		CreateInternalTransfer(userID, recipientID uint64, sum float64) (*model.InternalTransfer, error)
+		RepeatInternalTransfer(transferID uint64) (*model.InternalTransfer, error)
+		GetInternalTransferByID(transferID uint64) (*model.InternalTransfer, error)
+		FindLastInternalTransfers(userID uint64, limit int) ([]model.InternalTransfer, error)
+	}
+
+	TokenProvider interface {
+		NewToken(userID uint64) string
+	}
+)
 
 // service - HTTPService interface implementation
 type service struct {
-	repo        Repository
-	bearer      token.AuthBearer
-	tokenIssuer string
+	r Repository
+	b TokenProvider
 }
 
 // NewHTTPService - builds api.HTTPService interface implementation.
-func NewHTTPService(
-	repo Repository,
-	authBearer token.AuthBearer,
-) (api.HTTPService, error) {
-	if repo == nil {
-		return nil, errors.New("NewHTTPService(): repository is nil")
+func NewHTTPService(r Repository, b TokenProvider) (api.HTTPService, error) {
+	if r == nil {
+		return nil, errors.New("NewHTTPService(): Repository is nil")
 	}
-	if authBearer == nil {
-		return nil, errors.New("NewHTTPService(): auth bearer is nil")
+	if b == nil {
+		return nil, errors.New("NewHTTPService(): TokenProvider is nil")
 	}
 	return &service{
-		repo:        repo,
-		bearer:      authBearer,
-		tokenIssuer: "PW Demo server",
+		r: r,
+		b: b,
 	}, nil
-}
-
-func (s *service) GetAuthBearer() token.AuthBearer {
-	return s.bearer
 }
 
 const (
@@ -83,7 +78,7 @@ func (s *service) Login() http.HandlerFunc {
 			reply.BadRequest("Invalid login, valid email address expected")(w, r)
 			return
 		}
-		user, err := s.repo.GetUserByEmailAndPassword(a.Get(), password)
+		user, err := s.r.GetUserByEmailAndPassword(a.Get(), password)
 		if err != nil {
 			// TODO log repo error
 			reply.InternalServerError("Cannot complete request now")(w, r)
@@ -94,7 +89,7 @@ func (s *service) Login() http.HandlerFunc {
 			return
 
 		}
-		token := s.bearer.CreateToken(token.WithIssuer(s.tokenIssuer), token.WithSubject(user.ID))
+		token := s.b.NewToken(user.ID)
 		if token == "" {
 			// TODO log bearer error
 			reply.InternalServerError("Cannot prepare authorization token now")(w, r)
@@ -131,7 +126,7 @@ func (s *service) Register() http.HandlerFunc {
 			reply.BadRequest("Required name is empty")(w, r)
 			return
 		}
-		user, err := s.repo.CreateUser(
+		user, err := s.r.CreateUser(
 			model.User{
 				Email:   login,
 				Name:    name,
@@ -144,7 +139,7 @@ func (s *service) Register() http.HandlerFunc {
 			reply.InternalServerError("Cannot complete request")(w, r)
 			return
 		}
-		token := s.bearer.CreateToken(token.WithIssuer(s.tokenIssuer), token.WithSubject(user.ID))
+		token := s.b.NewToken(user.ID)
 		reply.OK(&api.RegisterResponse{fmt.Sprintf("Bearer %s", token)})(w, r)
 	}
 }
@@ -168,7 +163,7 @@ func (s *service) UserListHavePrefix(prefix string) http.HandlerFunc {
 			return
 		}
 
-		list, err := s.repo.FindUsersHavePrefix(prefix, 100)
+		list, err := s.r.FindUsersHavePrefix(prefix, 100)
 		if err != nil {
 			reply.InternalServerError("Cannot complete request now")(w, r)
 			return
@@ -193,7 +188,7 @@ func (s *service) GetUserByID(id uint64) http.HandlerFunc {
 				reply.Forbidden("Insufficient authority to complete request")(w, r)
 				return
 			}
-			user, err := s.repo.GetUserByID(id)
+			user, err := s.r.GetUserByID(id)
 			if err != nil {
 				reply.InternalServerError("Cannot complete request now")(w, r)
 				return
@@ -227,7 +222,7 @@ func (s *service) IMTCensoredList() http.HandlerFunc {
 			reply.Unauthorized()(w, r)
 			return
 		}
-		transfers, err := s.repo.FindLastInternalTransfers(authUser.ID, 100)
+		transfers, err := s.r.FindLastInternalTransfers(authUser.ID, 100)
 		if err != nil {
 			reply.InternalServerError("Cannot complete request")(w, r)
 			return
@@ -247,7 +242,7 @@ func (s *service) GetIMTCensoredByID(id uint64) http.HandlerFunc {
 			reply.Unauthorized()(w, r)
 			return
 		}
-		transfer, err := s.repo.GetInternalTransferByID(id)
+		transfer, err := s.r.GetInternalTransferByID(id)
 		if err != nil {
 			reply.InternalServerError("Cannot complete request")(w, r)
 			return
@@ -286,7 +281,7 @@ func (s *service) CreateIMT() http.HandlerFunc {
 			reply.BadRequest("Invalid recipient ID")(w, r)
 			return
 		}
-		if recipient, _ := s.repo.GetUserByID(recipientID); recipient == nil {
+		if recipient, _ := s.r.GetUserByID(recipientID); recipient == nil {
 			reply.Conflict("Recipient not found")(w, r)
 			return
 		}
@@ -302,7 +297,7 @@ func (s *service) CreateIMT() http.HandlerFunc {
 			return
 		}
 
-		transfer, err := s.repo.CreateInternalTransfer(authUser.ID, recipientID, sum)
+		transfer, err := s.r.CreateInternalTransfer(authUser.ID, recipientID, sum)
 		if err != nil {
 			reply.Conflict(fmt.Sprintf("Cannot transfer money to #%d", recipientID))(w, r)
 			return
@@ -322,7 +317,7 @@ func (s *service) RepeatIMTByID(id uint64) http.HandlerFunc {
 			reply.BadRequest("Invalid transfer ID")(w, r)
 			return
 		}
-		transfer, err := s.repo.GetInternalTransferByID(id)
+		transfer, err := s.r.GetInternalTransferByID(id)
 		if err != nil {
 			reply.InternalServerError("Cannot complete request now")(w, r)
 			return
@@ -335,7 +330,7 @@ func (s *service) RepeatIMTByID(id uint64) http.HandlerFunc {
 			reply.Forbidden("Insufficient authority to repeat transfer")(w, r)
 			return
 		}
-		newTransfer, err := s.repo.RepeatInternalTransfer(transfer.ID)
+		newTransfer, err := s.r.RepeatInternalTransfer(transfer.ID)
 		if err != nil {
 			reply.Conflict(fmt.Sprintf("Cannot repeat transfer #%d", id))(w, r)
 			return
@@ -345,13 +340,13 @@ func (s *service) RepeatIMTByID(id uint64) http.HandlerFunc {
 }
 
 func (s *service) authorize(r *http.Request) (auth *model.User, ok bool) {
-	payload := middleware.GetAuthPayload(r)
-	if payload == nil || payload.UserID == 0 {
+	userID, ok := middleware.DiscoverUserID(r)
+	if !ok || userID == 0 {
 		return nil, false
 	}
-	auth, err := s.repo.GetUserByID(payload.UserID)
+	user, err := s.r.GetUserByID(userID)
 	if err != nil {
 		return nil, false
 	}
-	return auth, true
+	return user, true
 }

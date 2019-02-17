@@ -5,24 +5,22 @@ import (
 	"time"
 
 	"github.com/wtask/pwsrv/internal/model"
-
-	"github.com/wtask/pwsrv/internal/encryption/token"
 )
 
-type HTTPService interface {
-	GetAuthBearer() token.AuthBearer
-
-	Options() http.HandlerFunc // not impl
-	Login() http.HandlerFunc
-	Register() http.HandlerFunc
-	UserListHavePrefix(prefix string) http.HandlerFunc
-	GetUserByID(id uint64) http.HandlerFunc
-	GetUserByAuth() http.HandlerFunc
-	IMTCensoredList() http.HandlerFunc
-	GetIMTCensoredByID(id uint64) http.HandlerFunc
-	CreateIMT() http.HandlerFunc
-	RepeatIMTByID(id uint64) http.HandlerFunc
-}
+type (
+	HTTPService interface {
+		Options() http.HandlerFunc // not impl
+		Login() http.HandlerFunc
+		Register() http.HandlerFunc
+		UserListHavePrefix(prefix string) http.HandlerFunc
+		GetUserByID(id uint64) http.HandlerFunc
+		GetUserByAuth() http.HandlerFunc
+		IMTCensoredList() http.HandlerFunc
+		GetIMTCensoredByID(id uint64) http.HandlerFunc
+		CreateIMT() http.HandlerFunc
+		RepeatIMTByID(id uint64) http.HandlerFunc
+	}
+)
 
 type (
 	// ErrorResponse - common error response

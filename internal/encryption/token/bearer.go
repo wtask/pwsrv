@@ -1,110 +1,146 @@
 package token
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/wtask/pwsrv/internal/core"
+	"github.com/wtask/pwsrv/internal/core/middleware"
 	"github.com/wtask/pwsrv/internal/encryption/hasher"
 )
 
 // AuthBearer - common internal interface to create and validate authorization tokens
 type AuthBearer interface {
-	CreateToken(claims ...payloadClaim) (token string)
-	GetPayload(token string) (p *Payload, ok bool)
+	middleware.TokenDiscoverer
+	core.TokenProvider
 }
 
-type bearer struct {
-	ttl    time.Duration
-	signer hasher.StringHasher
-}
+type (
+	payload struct {
+		Issuer         string `json:""iss,omitempty`
+		ExpirationTime int64  `json:"exp"`
+		UserID         uint64 `json:"sub"`
+	}
+
+	bearer struct {
+		ttl          time.Duration
+		issuer       string
+		timeProvider func() time.Time
+		signer       hasher.StringHasher
+	}
+
+	bearerOption func(*bearer)
+)
 
 // NewMD5DigestBearer - initialize bearer with MD5-digest signing method.
-func NewMD5DigestBearer(secret string, ttl time.Duration) AuthBearer {
-	return &bearer{
-		ttl:    ttl,
-		signer: hasher.NewMD5DigestHasher(secret),
+func NewMD5DigestBearer(options ...bearerOption) AuthBearer {
+	b := (&bearer{}).alter(options...)
+	if b.signer == nil {
+		b.signer = hasher.NewMD5DigestHasher("")
+	}
+	if b.timeProvider == nil {
+		b.timeProvider = defaultTimeProvider
+	}
+	return b
+}
+
+func (b *bearer) alter(options ...bearerOption) *bearer {
+	if b == nil {
+		return nil
+	}
+	for _, o := range options {
+		if o != nil {
+			o(b)
+		}
+	}
+	return b
+}
+
+// WithSignatureSecret - initialize bearer signature secret value.
+func WithSignatureSecret(secret string) bearerOption {
+	return func(b *bearer) {
+		b.signer = hasher.NewMD5DigestHasher(secret)
 	}
 }
 
-// CreateToken - returns encrypted token corresponding passed claims
-// or empty string in case of error.
-func (b *bearer) CreateToken(claims ...payloadClaim) string {
+// WithTTL - initialize bearer with TTL value.
+func WithTTL(ttl time.Duration) bearerOption {
+	return func(b *bearer) {
+		b.ttl = ttl
+	}
+}
+
+// WithIssuer - initialize bearer with Issuer name.
+func WithIssuer(issuer string) bearerOption {
+	return func(b *bearer) {
+		b.issuer = issuer
+	}
+}
+
+func defaultTimeProvider() time.Time {
+	return time.Now()
+}
+
+// withTimeProvider - initialize bearer with custom time provider.
+func withTimeProvider(p func() time.Time) bearerOption {
+	return func(b *bearer) {
+		b.timeProvider = p
+	}
+}
+
+// NewToken - return new token with given subject or empty string in case of error.
+func (b *bearer) NewToken(userID uint64) string {
 	if b == nil {
 		return ""
 	}
-	p := NewPayload(WithExpiration(time.Now().UTC().Add(b.ttl).Unix()))
-	UpdatePayload(p, claims...)
-	return b.encodeToken(p)
-}
-
-// GetPayload - return token payload and token validation result.
-// Unknown, expired tokens, tokens with zero user ID are not valid.
-func (b *bearer) GetPayload(token string) (p *Payload, ok bool) {
-	if b == nil {
-		return nil, false
+	t := b.timeProvider().UTC()
+	p := payload{
+		UserID:         userID,
+		Issuer:         b.issuer,
+		ExpirationTime: t.Add(b.ttl).Unix(),
 	}
-	p = b.decodeToken(token)
-	ok = p != nil &&
-		p.UserID > 0 &&
-		time.Now().UTC().Unix() <= p.ExpirationTime
-	return p, ok
-}
-
-// encodeToken - encodes payload data and returns non-empty token.
-func (b *bearer) encodeToken(p *Payload) string {
-	if b == nil || b.signer == nil {
+	b64 := encodeJSONB64(&p)
+	if b64 == "" {
 		return ""
 	}
-	p64, ok := encodeJSONB64(p)
-	if !ok {
+	sig := b.signer.Hash(b64)
+	if sig == "" {
 		return ""
 	}
-	s := b.signer.Hash(p64)
-	if s == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s.%s", p64, s)
+	return fmt.Sprintf("%s.%s", b64, sig)
 }
 
-// decodeToken - decodes payload from valid token.
-// Returns nil if can't decode.
-func (b *bearer) decodeToken(token string) *Payload {
+func (b *bearer) assertToken(token string) *payload {
 	if b == nil || token == "" {
 		return nil
 	}
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 ||
-		parts[0] == "" {
+		// if 2 - only second part may be empty
+		parts[1] == "" {
 		return nil
 	}
-	p := &Payload{}
+	if parts[1] != b.signer.Hash(parts[0]) {
+		return nil
+	}
+	p := &payload{}
 	if !decodeJSONB64(parts[0], p) {
-		return nil
-	}
-	if b.encodeToken(p) != token {
 		return nil
 	}
 	return p
 }
 
-func encodeJSONB64(v interface{}) (string, bool) {
-	bytes, err := json.Marshal(v)
-	if err != nil {
-		return "", false
+// DiscoverUserID - middleware.AuthBearer implementation.
+func (b *bearer) DiscoverUserID(token string) (uint64, bool) {
+	if b == nil {
+		return 0, false
 	}
-	return base64.RawURLEncoding.EncodeToString(bytes), true
-}
-
-func decodeJSONB64(src string, v interface{}) bool {
-	bytes, err := base64.RawURLEncoding.DecodeString(src)
-	if err != nil {
-		return false
+	p := b.assertToken(token)
+	if p == nil {
+		return 0, false
 	}
-	if err = json.Unmarshal(bytes, v); err != nil {
-		return false
-	}
-	return true
+	ok := b.timeProvider().UTC().Unix() < p.ExpirationTime &&
+		b.issuer == p.Issuer
+	return p.UserID, ok
 }
