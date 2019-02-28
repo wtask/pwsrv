@@ -1,0 +1,14 @@
+{
+	"server": {
+		"address": "",
+		"port": "${APP_PORT}"
+	},
+	"storage": "${APP_STORAGE_TYPE}",
+	"mysql": {
+		"dsn": "mysql://${APP_STORAGE_USER}:${APP_STORAGE_PASS}@tcp(${APP_STORAGE_IPADDR}:${APP_STORAGE_MYSQL_PORT})/pwsrv?parseTime=true"
+	},
+	"secret" :{
+		"user_password": "user_passwrod_secret",
+		"auth_bearer": "auth_bearer_secret"
+	}
+}

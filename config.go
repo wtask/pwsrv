@@ -16,7 +16,7 @@ type Configuration struct {
 
 type ServerParams struct {
 	Address string `json:"address"`
-	Port    int    `json:"port"`
+	Port    int    `json:"port,string"`
 }
 
 type MySQLParams struct {
