@@ -17,7 +17,7 @@ Project IS NOT dockerized. Only manual installation is possible:
 * Install Go 1.11 or above and set up standard golang environment.
 * Install and run DB server, create database and user to use with app
 * Clone or download this repository:
-	- into local folder __under__ `{GOPATH}`: `{GOPATH}/src/github.com/wtask/pwsrv`. In this case you will most likely have to setup `GO111MODULE` environment variable with value `on`
+	- into local folder __under__ `{GOPATH}`: `{GOPATH}/src/github.com/wtask/pwsrv`
 	- __or__ into any local folder __outside__ `{GOPATH}`
 * Copy example config `pwsrv.config.default.json` from project root into any dir, for example `{GOPATH}\etc\pwsrv\`. If you have a plan to support several environments, make copy of config per-environment: `pwsrv.config.dev.json`.
 * Modify the configuration file according with the your local settings.
