@@ -12,12 +12,12 @@ ARG app_dbname="pwsrv"
 
 
 ENV \
-APP_PORT="${app_port}"\
-APP_STORAGE_TYPE="mysql"\
-APP_STORAGE_USER="${app_storage_user}"\
-APP_STORAGE_PASS="${app_storage_pass}"\
-APP_STORAGE_IPADDR="${app_storage_ip}"\
-APP_STORAGE_MYSQL_PORT="3306"\
+APP_PORT="${app_port}" \
+APP_STORAGE_TYPE="mysql" \
+APP_STORAGE_USER="${app_storage_user}" \
+APP_STORAGE_PASS="${app_storage_pass}" \
+APP_STORAGE_IPADDR="${app_storage_ip}" \
+APP_STORAGE_MYSQL_PORT="3306" \
 APP_DBNAME="${app_dbname}" \
 # golang env
 CGO_ENABLED=0 \
