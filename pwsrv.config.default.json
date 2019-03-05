@@ -3,12 +3,13 @@
 		"address": "",
 		"port": "8000"
 	},
-	"storage": "mysql",
+	"dsn": "mysql://pwsrv:pwsrv@tcp(127.0.0.1:3306)/pwsrv",
 	"mysql": {
-		"dsn": "mysql://pwsrv:pwsrv@tcp(127.0.0.1:3306)/pwsrv?parseTime=true"
+		"parse_time": true,
+		"connect_timeout": "1m30s"
 	},
 	"secret" :{
-		"user_password": "user_passwrod_secret",
+		"user_password": "user_password_secret",
 		"auth_bearer": "auth_bearer_secret"
 	}
 }

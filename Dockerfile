@@ -2,23 +2,32 @@
 # inspired by:
 # https://pierreprinetti.com/blog/2018-the-go-1.11-web-service-dockerfile/
 # http://blog.wrouesnel.com/articles/Totally%20static%20Go%20builds/
+#
+# RUN MySQL for the first time before server app:
+# 	docker run --name mysql-server --detach -e MYSQL_ROOT_PASSWORD=rootpwd -e MYSQL_DATABASE=pwsrv -e MYSQL_USER=pwsrv -e MYSQL_PASSWORD=pwsrv mysql --default-authentication-plugin=mysql_native_password
+# Check MySQL has started (Ctrl+C to stop following logs): 
+# 	docker logs --follow mysql-server
+# Stop MySQL:
+# 	docker container stop mysql-server
+# Start prepared container:
+# 	docker container start mysql-server
+# Build your own pwsrv image or pull it from hub:
+# 	docker pull wtask/pwsrv (~13,5 Mb)
+# RUN pwsrv interactively:
+# 	docker run -it --rm --name pvsrv -p 8000:8000 --link mysql-server wtask/pwsrv
+# After that you can use pwsrv-API.
+# Stop the server by Ctrl+C
 FROM golang:latest as builder
 
-ARG app_port="8000"
-ARG app_storage_user="pwsrv"
-ARG app_storage_pass="pwsrv"
-ARG app_storage_ip="127.0.0.1"
-ARG app_dbname="pwsrv"
-
+ARG expose="8000"
 
 ENV \
-APP_PORT="${app_port}" \
-APP_STORAGE_TYPE="mysql" \
-APP_STORAGE_USER="${app_storage_user}" \
-APP_STORAGE_PASS="${app_storage_pass}" \
-APP_STORAGE_IPADDR="${app_storage_ip}" \
-APP_STORAGE_MYSQL_PORT="3306" \
-APP_DBNAME="${app_dbname}" \
+# app config env
+APP_PORT="${expose}" \
+APP_STORAGE_DSN="mysql://pwsrv:pwsrv@tcp(mysql-server:3306)/pwsrv" \
+APP_STORAGE_CONNECT_TIMEOUT="3m" \
+APP_SECRET_USER_PASSWORD="user_password_secret" \
+APP_SECRET_AUTH_BEARER="auth_bearer_secret" \
 # golang env
 CGO_ENABLED=0 \
 GOOS=linux \
@@ -43,7 +52,7 @@ WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/pwsrv /build/pwsrv.config.json ./
 
-EXPOSE ${app_port}
+EXPOSE ${expose}
 
 #STOPSIGNAL SIGTERM
 

@@ -3,12 +3,13 @@
 		"address": "",
 		"port": "${APP_PORT}"
 	},
-	"storage": "${APP_STORAGE_TYPE}",
+	"dsn": "${APP_STORAGE_DSN}",
 	"mysql": {
-		"dsn": "mysql://${APP_STORAGE_USER}:${APP_STORAGE_PASS}@tcp(${APP_STORAGE_IPADDR}:${APP_STORAGE_MYSQL_PORT})/pwsrv?parseTime=true"
+		"parse_time": true,
+		"connect_timeout": "${APP_STORAGE_CONNECT_TIMEOUT}"
 	},
 	"secret" :{
-		"user_password": "user_passwrod_secret",
-		"auth_bearer": "auth_bearer_secret"
+		"user_password": "${APP_SECRET_USER_PASSWORD}",
+		"auth_bearer": "${APP_SECRET_AUTH_BEARER}"
 	}
 }
