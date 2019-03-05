@@ -15,7 +15,7 @@
 # 	docker pull wtask/pwsrv (~13,5 Mb)
 # RUN pwsrv interactively:
 # 	docker run -it --rm --name pvsrv -p 8000:8000 --link mysql-server wtask/pwsrv
-# After that you can use pwsrv-API.
+# After that you can use pwsrv-API on localhost:8000.
 # Stop the server by Ctrl+C
 FROM golang:latest as builder
 
