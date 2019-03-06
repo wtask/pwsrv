@@ -60,11 +60,11 @@ When the server has started and after successfully connecting to the database, i
 
 * Stop DB server:
 
-	`docker stop mysql-server` or `docker container stop mysql-server`
+	`docker stop mysql-server`
 
 * Start DB server again (fast):
 
-	`docker start mysql-server` or `docker container start mysql-server`
+	`docker start mysql-server`
 
 * Build your own pwsrv-image (if you have pull down this repo):
 
