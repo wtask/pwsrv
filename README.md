@@ -49,22 +49,35 @@ When the server has started and after successfully connecting to the database, i
 ## Run with Docker
 
 * RUN MySQL container (or MariaDB if you prefer it) for the first time (slow):
+
 	`docker run --name mysql-server -d -e MYSQL_ROOT_PASSWORD=rootpwd -e MYSQL_DATABASE=pwsrv -e MYSQL_USER=pwsrv -e MYSQL_PASSWORD=pwsrv mysql --default-authentication-plugin=mysql_native_password`
 
 	> If you need to connect your local MySQL-client with this container add `-p 3306:3306` option.
-	
+
 * Check DB server is ready to listen on default (3306) port (Ctrl+C to stop following logs):
+
 	`docker logs --follow mysql-server`
+
 * Stop DB server:
+
 	`docker stop mysql-server` or `docker container stop mysql-server`
+
 * Start DB server again (fast):
+
 	`docker start mysql-server` or `docker container start mysql-server`
+
 * Build your own pwsrv-image (if you have pull down this repo):
+
 	`docker build -t wtask/pwsrv .`
+
 * Or simply pull server image from docker hub (~ 12 Mb):
+
 	`docker pull wtask/pwsrv`
+
 * Start server on your localhost:8000 (DB server must started already):
+
 	`docker run -it --rm --name pwsrv -p 8000:8000 --link mysql-server wtask/pwsrv`
+
 * Press Ctrl+C to stop server (and container)
 
 ## API
