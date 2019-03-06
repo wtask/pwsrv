@@ -12,9 +12,11 @@
 # Start prepared container:
 # 	docker container start mysql-server
 # Build your own pwsrv image or pull it from hub:
+#	docker build -t wtask/pwsrv .
+#	or
 # 	docker pull wtask/pwsrv (~13,5 Mb)
-# RUN pwsrv interactively:
-# 	docker run -it --rm --name pvsrv -p 8000:8000 --link mysql-server wtask/pwsrv
+# RUN pwsrv interactively (image will be pulled if you are not built it):
+# 	docker run -it --rm --name pwsrv -p 8000:8000 --link mysql-server wtask/pwsrv
 # After that you can use pwsrv-API on localhost:8000.
 # Stop the server by Ctrl+C
 FROM golang:latest as builder
