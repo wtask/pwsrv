@@ -80,6 +80,10 @@ When the server has started and after successfully connecting to the database, i
 
 * Press Ctrl+C to stop server (and container)
 
+* Remove mysql container:
+
+	`docker container rm mysql-server`
+
 ## API
 
 The server supports calling its methods in REST-style via http.
