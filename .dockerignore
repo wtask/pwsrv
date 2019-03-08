@@ -1,0 +1,11 @@
+/.history*
+/.vscode*
+/.idea*
+/.git*
+.gitignore
+# docker will build the server as module
+Gopkg.*
+/vendor*
+*.md
+# local config example
+pwsrv.config.default.json

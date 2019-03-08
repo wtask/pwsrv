@@ -56,10 +56,10 @@ func newStorage(cfg *Configuration) (storage.Interface, error) {
 		storage storage.Interface
 		err     error
 	)
-	switch cfg.Storage {
+	switch cfg.StorageType {
 	case "mysql":
 		storage, err = mysql.NewStorage(
-			mysql.WithDSN(cfg.MySQL.DSN),
+			mysql.WithDSN(fmt.Sprintf("%s?%s", cfg.DSN, cfg.MySQL)),
 			mysql.WithTablePrefix("pwsrv_"),
 			mysql.WithPasswordHasher(
 				hasher.NewMD5DigestHasher(cfg.Secret.UserPassword),
@@ -69,7 +69,7 @@ func newStorage(cfg *Configuration) (storage.Interface, error) {
 			return nil, fmt.Errorf("Storage factory: %s", err.Error())
 		}
 	default:
-		return nil, fmt.Errorf("Storage factory: unsupported storage %q", cfg.Storage)
+		return nil, fmt.Errorf("Storage factory: dsn contains unsupported storage %q", cfg.StorageType)
 	}
 	return storage, nil
 }

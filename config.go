@@ -3,26 +3,33 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"strings"
 )
 
+// Configuration - application runtime parameters
 type Configuration struct {
-	Server  ServerParams `json:"server"`
-	Storage string       `json:"storage"`
-	MySQL   MySQLParams  `json:"mysql"`
-	Secret  SecretParams `json:"secret"`
+	Server      ServerParams `json:"server"`
+	DSN         string       `json:"dsn"`
+	StorageType string       `json:-`
+	MySQL       MySQLOptions `json:"mysql"`
+	Secret      SecretParams `json:"secret"`
 }
 
+// ServerParams - application server parameters
 type ServerParams struct {
 	Address string `json:"address"`
-	Port    int    `json:"port"`
+	Port    int    `json:"port,string"`
 }
 
-type MySQLParams struct {
-	DSN string `json:"dsn"`
+// MySQLOptions - mysql connection options
+type MySQLOptions struct {
+	ParseTime bool   `json:"parse_time"`
+	Timeout   string `json:"connect_timeout"`
 }
 
+// SecretParams - strings used to generate sensitive data
 type SecretParams struct {
 	UserPassword string `json:"user_password"`
 	AuthBearer   string `json:"auth_bearer"`
@@ -38,6 +45,16 @@ func loadJSONConfig(filepath string) (*Configuration, error) {
 	if err = json.Unmarshal(src, &cfg); err != nil {
 		return nil, err
 	}
+
+	if i := strings.Index(cfg.DSN, "://"); i > 0 {
+		// init storage type
+		cfg.StorageType = strings.ToLower(cfg.DSN[:i])
+	}
+
+	if err = verifyConfig(&cfg); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
 }
 
@@ -46,13 +63,13 @@ func verifyConfig(cfg *Configuration) error {
 		return errors.New("config: server.Port value must be greater than or equal to zero")
 	}
 
-	cfg.Storage = strings.ToLower(cfg.Storage)
-	if cfg.Storage != "mysql" {
-		return errors.New("config: storage type supports only mysql")
+	if cfg.StorageType != "mysql" {
+		return errors.New("config: invalid dsn, only mysql:// connection is supported")
 	}
-	if cfg.Storage == "mysql" {
-		if cfg.MySQL.DSN == "" {
-			return errors.New("config: mysql.dsn must not be empty")
+	if cfg.StorageType == "mysql" {
+		// exclude any mysql connection options given as dsn's query string
+		if strings.Index(cfg.DSN, "?") != -1 {
+			return errors.New("config: mysql dsn must not contain query string for options")
 		}
 	}
 
@@ -64,4 +81,12 @@ func verifyConfig(cfg *Configuration) error {
 	}
 
 	return nil
+}
+
+func (m MySQLOptions) String() string {
+	s := fmt.Sprintf("parseTime=%t", m.ParseTime)
+	if m.Timeout != "" {
+		s += fmt.Sprintf("&timeout=%s", m.Timeout)
+	}
+	return s
 }

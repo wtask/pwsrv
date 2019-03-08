@@ -1,0 +1,15 @@
+{
+	"server": {
+		"address": "",
+		"port": "${APP_PORT}"
+	},
+	"dsn": "${APP_STORAGE_DSN}",
+	"mysql": {
+		"parse_time": true,
+		"connect_timeout": "${APP_STORAGE_CONNECT_TIMEOUT}"
+	},
+	"secret" :{
+		"user_password": "${APP_SECRET_USER_PASSWORD}",
+		"auth_bearer": "${APP_SECRET_AUTH_BEARER}"
+	}
+}
