@@ -18,7 +18,7 @@ type AuthBearer interface {
 
 type (
 	payload struct {
-		Issuer         string `json:""iss,omitempty`
+		Issuer         string `json:"iss,omitempty"`
 		ExpirationTime int64  `json:"exp"`
 		UserID         uint64 `json:"sub"`
 	}
