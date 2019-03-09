@@ -9,10 +9,10 @@ import (
 	"golang.org/x/net/idna"
 )
 
-// Address - contains unexported fields only of parsed email or mailto-parts.
+// Address - contains unexported fields only parsed email.
 type Address struct {
-	user, domain, domainASCII, name string
-	err                             error
+	localPart, domain, domainASCII, userName string
+	err                                      error
 }
 
 // Get - returns email address in Unicode as if it was properly parsed or empty string otherwise.
@@ -20,7 +20,7 @@ func (a *Address) Get() string {
 	if !a.IsValid() {
 		return ""
 	}
-	return fmt.Sprintf("%s@%s", a.user, a.domain)
+	return fmt.Sprintf("%s@%s", a.localPart, a.domain)
 }
 
 // GetASCII - returns email address in ASCII punycode if it was properly parsed or empty string otherwise.
@@ -28,7 +28,7 @@ func (a *Address) GetASCII() string {
 	if !a.IsValid() {
 		return ""
 	}
-	return fmt.Sprintf("%s@%s", a.user, a.domainASCII)
+	return fmt.Sprintf("%s@%s", a.localPart, a.domainASCII)
 }
 
 // Domain - returns domain-part of email in Unicode if address is valid or empty string otherwise.
@@ -39,7 +39,7 @@ func (a *Address) Domain() string {
 	return a.domain
 }
 
-// DomainASCII - eturns domain-part of email in ASCII punycode if address is valid or empty string otherwise.
+// DomainASCII - returns domain-part of email in ASCII punycode if address is valid or empty string otherwise.
 func (a *Address) DomainASCII() string {
 	if !a.IsValid() {
 		return ""
@@ -47,20 +47,21 @@ func (a *Address) DomainASCII() string {
 	return a.domainASCII
 }
 
-// UserPart - returns user-part of email in Unicode or empty string if address is not valid.
-func (a *Address) UserPart() string {
+// LocalPart - returns local-part of email in Unicode or empty string if address is not valid.
+func (a *Address) LocalPart() string {
 	if a == nil {
 		return ""
 	}
-	return a.user
+	return a.localPart
 }
 
-// UserName - returns email owner name, if it was set in source mailto like this `John Smith <john@smith.com>`
+// UserName - returns user name for email address if it was set in source.
+// For example, if source was string `John Smith <john@smith.com>` this method should return `John Smith`.
 func (a *Address) UserName() string {
 	if a == nil {
 		return ""
 	}
-	return a.name
+	return a.userName
 }
 
 // IsValid - returns parsing and IDNA-checking result of given email.
@@ -68,13 +69,13 @@ func (a *Address) UserName() string {
 func (a *Address) IsValid() bool {
 	return a != nil &&
 		a.err == nil &&
-		a.user != "" && a.domain != "" && a.domainASCII != ""
+		a.localPart != "" && a.domain != "" && a.domainASCII != ""
 }
 
 // Error - returns error description if it was occurred.
 func (a *Address) Error() string {
 	if a == nil {
-		return "mailto: nil *Address"
+		return "email: uninitialized *Address"
 	}
 	if a.err != nil {
 		return a.err.Error()
@@ -82,20 +83,20 @@ func (a *Address) Error() string {
 	return ""
 }
 
-// NewAddress - creates address instance after parsing and validation (mostly sematic) of given mailto.
-func NewAddress(mailTo string) *Address {
+// NewAddress - creates Address instance after parsing and validating (mostly sematic) of given source string.
+func NewAddress(address string) *Address {
 	addr := &Address{}
-	ma, err := mail.ParseAddress(mailTo)
+	ma, err := mail.ParseAddress(address)
 	if err != nil {
 		addr.err = err
 		return addr
 	}
-	user, domain, err := splitAddress(ma.Address)
+	localPart, domain, err := splitAddress(ma.Address)
 	if err != nil {
 		addr.err = err
 		return addr
 	}
-	addr.user, addr.name = user, ma.Name
+	addr.localPart, addr.userName = localPart, ma.Name
 	idn := idna.New(
 		idna.RemoveLeadingDots(false),
 		idna.StrictDomainName(true),
@@ -113,10 +114,10 @@ func NewAddress(mailTo string) *Address {
 }
 
 // splitAddress - helper to split email into 2 part by @.
-func splitAddress(address string) (user, domain string, err error) {
+func splitAddress(address string) (localPart, domain string, err error) {
 	d := strings.SplitN(address, "@", 2)
 	if len(d) != 2 {
-		return "", "", errors.New("mailto: there is no domain part")
+		return "", "", errors.New("email: can not split local and domain parts")
 	}
 	return d[0], d[1], nil
 }
