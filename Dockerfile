@@ -21,11 +21,9 @@
 # Stop the server by Ctrl+C
 FROM golang:latest as builder
 
-ARG expose="8000"
-
 ENV \
 # app config env
-APP_PORT="${expose}" \
+APP_PORT="8000" \
 APP_STORAGE_DSN="mysql://pwsrv:pwsrv@tcp(mysql-server:3306)/pwsrv" \
 APP_STORAGE_CONNECT_TIMEOUT="3m" \
 APP_SECRET_USER_PASSWORD="user_password_secret" \
@@ -54,7 +52,7 @@ WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/pwsrv /build/pwsrv.config.json ./
 
-EXPOSE ${expose}
+EXPOSE 8000
 
 #STOPSIGNAL SIGTERM
 
