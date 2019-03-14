@@ -41,7 +41,7 @@ apt-get update -y \
 && apt-get install -y \ 
 	gettext-base \ 
 && update-ca-certificates \
-&& envsubst < pwsrv.config.docker.json | tee > pwsrv.config.json \
+&& envsubst < pwsrv.config.docker.json | tee pwsrv.config.json \
 && go mod download \
 && go build -a -ldflags '-extldflags "-static"' -o pwsrv .
 
